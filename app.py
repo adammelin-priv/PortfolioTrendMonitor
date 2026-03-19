@@ -23,9 +23,22 @@ PAGES = {
     "💼 Portfolio": portfolio_page,
 }
 
+# Initialise page in session state so selection survives reruns
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "📥 Import"
+
 with st.sidebar:
     st.title("PortfolioTrendMonitor")
     st.markdown("---")
-    page_label = st.radio("Navigate", list(PAGES.keys()), label_visibility="collapsed")
+    for label in PAGES:
+        is_active = st.session_state.current_page == label
+        if st.button(
+            label,
+            use_container_width=True,
+            type="primary" if is_active else "secondary",
+            key=f"nav_{label}",
+        ):
+            st.session_state.current_page = label
+            st.rerun()
 
-PAGES[page_label].render()
+PAGES[st.session_state.current_page].render()
