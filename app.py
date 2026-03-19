@@ -7,7 +7,7 @@ Run with:
 
 import streamlit as st
 from database import init_db
-from pages import import_page
+from pages import import_page, screener_page, portfolio_page
 
 st.set_page_config(
     page_title="PortfolioTrendMonitor",
@@ -16,4 +16,16 @@ st.set_page_config(
 )
 
 init_db()
-import_page.render()
+
+PAGES = {
+    "📥 Import": import_page,
+    "🔍 Screener": screener_page,
+    "💼 Portfolio": portfolio_page,
+}
+
+with st.sidebar:
+    st.title("PortfolioTrendMonitor")
+    st.markdown("---")
+    page_label = st.radio("Navigate", list(PAGES.keys()), label_visibility="collapsed")
+
+PAGES[page_label].render()
