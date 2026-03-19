@@ -7,7 +7,7 @@ Run with:
 
 import streamlit as st
 from database import init_db
-from pages import import_page, screener_page, portfolio_page
+from views import import_page, screener_page, portfolio_page
 
 st.set_page_config(
     page_title="PortfolioTrendMonitor",
