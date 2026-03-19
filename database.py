@@ -103,6 +103,39 @@ def init_db() -> None:
                 imported_at         TEXT DEFAULT (datetime('now'))
             );
 
+            -- User-defined screening configurations / presets
+            CREATE TABLE IF NOT EXISTS screen_configs (
+                id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+                name                    TEXT NOT NULL UNIQUE,
+                description             TEXT,
+                -- Technical / computed signal criteria
+                trend_direction         TEXT,   -- "up", "down", "sideways", or NULL (= any)
+                min_momentum_score      REAL,
+                max_momentum_score      REAL,
+                min_rsi                 REAL,
+                max_rsi                 REAL,
+                require_above_ma50      INTEGER DEFAULT 0,   -- boolean 0/1
+                require_above_ma200     INTEGER DEFAULT 0,
+                require_golden_cross    INTEGER DEFAULT 0,   -- MA50 > MA200
+                -- Fundamental / Börsdata criteria
+                max_pe                  REAL,
+                min_roe                 REAL,
+                max_net_debt_ebitda     REAL,
+                min_profit_margin       REAL,
+                min_perf_3m             REAL,
+                min_perf_6m             REAL,
+                min_earnings_growth_5y  REAL,
+                min_revenue_growth_5y   REAL,
+                min_price_ma200_pct     REAL,
+                max_price_ma200_pct     REAL,
+                -- Universe filters
+                country                 TEXT,
+                market                  TEXT,
+                sector                  TEXT,
+                created_at              TEXT DEFAULT (datetime('now')),
+                updated_at              TEXT DEFAULT (datetime('now'))
+            );
+
             -- User's portfolio positions
             CREATE TABLE IF NOT EXISTS portfolio (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
