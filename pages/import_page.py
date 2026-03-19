@@ -127,52 +127,55 @@ def render() -> None:
             "Existing rows for the same ticker+date are overwritten."
         )
 
+        uploaded_file = st.file_uploader(
+            "Upload Börsdata price history CSV",
+            type=["csv", "txt"],
+            help="Export from Börsdata: choose a stock → Historia → Export CSV",
+        )
+
+        # Derive ticker from filename as default
+        filename_ticker = ""
+        if uploaded_file is not None:
+            import os
+            filename_ticker = os.path.splitext(uploaded_file.name)[0].upper()
+
         with st.form("stock_meta_form"):
-            st.subheader("Stock metadata")
+            st.subheader("Stock metadata (optional — leave blank to use filename as ticker)")
             col1, col2 = st.columns(2)
             with col1:
-                ticker = st.text_input("Ticker *", placeholder="e.g. ERIC-B, AAPL, VOW3").strip().upper()
-                name   = st.text_input("Company name *", placeholder="e.g. Ericsson, Apple")
+                ticker = st.text_input("Ticker", value=filename_ticker, placeholder="e.g. ERIC-B, AAPL, VOW3").strip().upper()
+                name   = st.text_input("Company name", placeholder="Defaults to ticker if left blank")
                 market = st.text_input("Market", placeholder="e.g. Stockholmsbörsen, Nasdaq, XETRA")
             with col2:
                 sector   = st.text_input("Sector", placeholder="e.g. Technology, Industrials")
                 currency = st.selectbox("Currency", ["SEK", "USD", "EUR", "NOK", "DKK", "GBP"])
 
-            st.subheader("CSV file")
-            uploaded_file = st.file_uploader(
-                "Upload Börsdata price history CSV",
-                type=["csv", "txt"],
-                help="Export from Börsdata: choose a stock → Historia → Export CSV",
-            )
             submitted = st.form_submit_button("Import", type="primary")
 
         if submitted:
-            errors = []
-            if not ticker:
-                errors.append("Ticker is required.")
-            if not name:
-                errors.append("Company name is required.")
             if uploaded_file is None:
-                errors.append("Please upload a CSV file.")
-
-            if errors:
-                for e in errors:
-                    st.error(e)
+                st.error("Please upload a CSV file.")
             else:
-                try:
-                    file_bytes = uploaded_file.read()
-                    _, prices_df = parse_borsdata_csv(file_bytes, ticker)
-                    _upsert_stock(ticker, name, market, sector, currency)
-                    rows_written = _upsert_prices(prices_df)
-                    st.success(f"Imported **{rows_written}** price rows for **{ticker}** ({name}).")
-                    st.subheader("Preview — most recent rows")
-                    preview = prices_df.sort_values("date", ascending=False).head(10)
-                    st.dataframe(preview, use_container_width=True, hide_index=True)
-                except ValueError as e:
-                    st.error(f"Parse error: {e}")
-                except Exception as e:
-                    st.error(f"Unexpected error: {e}")
-                    raise
+                effective_ticker = ticker or filename_ticker
+                if not effective_ticker:
+                    st.error("Could not determine ticker — please enter it manually.")
+                else:
+                    effective_name = name or effective_ticker
+                    try:
+                        uploaded_file.seek(0)
+                        file_bytes = uploaded_file.read()
+                        _, prices_df = parse_borsdata_csv(file_bytes, effective_ticker)
+                        _upsert_stock(effective_ticker, effective_name, market, sector, currency)
+                        rows_written = _upsert_prices(prices_df)
+                        st.success(f"Imported **{rows_written}** price rows for **{effective_ticker}** ({effective_name}).")
+                        st.subheader("Preview — most recent rows")
+                        preview = prices_df.sort_values("date", ascending=False).head(10)
+                        st.dataframe(preview, use_container_width=True, hide_index=True)
+                    except ValueError as e:
+                        st.error(f"Parse error: {e}")
+                    except Exception as e:
+                        st.error(f"Unexpected error: {e}")
+                        raise
 
         st.divider()
         st.subheader("Stocks already in database")
