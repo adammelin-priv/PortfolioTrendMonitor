@@ -13,20 +13,17 @@ from components.borsdata_parser import parse_borsdata_screener_csv
 from database import get_connection
 
 
-_SCREENER_COLS = [
-    "ticker", "borsdata_id", "company", "instrument", "sector", "country",
-    "market", "industry", "pe_current", "peg_current", "price_ma200_pct",
-    "ma200_trend_1m", "perf_3m", "perf_6m", "perf_3y", "roe_avg_3y",
-    "roe_current", "net_debt_ebitda", "profit_margin", "profit_margin_avg",
-    "gross_margin", "gross_margin_avg", "earnings_growth_5y",
-    "revenue_growth_5y", "revenue_growth_yy", "revenue_growth_1y",
-    "dividend_growth_5y", "market_cap_sek", "opcashflow_stable",
-    "earnings_stable", "banks_credit_losses", "banks_ci_ratio",
-]
+def _db_columns() -> set[str]:
+    """Return the set of column names that exist in screener_imports."""
+    conn = get_connection()
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(screener_imports)")}
+    conn.close()
+    return cols
 
 
 def _upsert_screener_imports(df: pd.DataFrame) -> int:
-    """Insert or replace screener_imports rows. Returns count written."""
+    """Insert or replace screener_imports rows using whatever columns
+    exist in both the DataFrame and the database schema."""
 
     def _clean(v):
         try:
@@ -36,19 +33,25 @@ def _upsert_screener_imports(df: pd.DataFrame) -> int:
             pass
         return v
 
-    conn = get_connection()
-    placeholders = ", ".join(["?"] * len(_SCREENER_COLS))
-    cols_str = ", ".join(_SCREENER_COLS)
-    update_str = ", ".join(f"{c} = excluded.{c}" for c in _SCREENER_COLS if c != "ticker")
+    # Only use columns that are in the DB schema (skip imported_at — it has a default)
+    schema_cols = _db_columns() - {"imported_at"}
+    cols = [c for c in df.columns if c in schema_cols]
+    if "ticker" not in cols:
+        raise ValueError("DataFrame has no 'ticker' column after parsing.")
+
+    placeholders = ", ".join(["?"] * len(cols))
+    cols_str = ", ".join(cols)
+    update_str = ", ".join(f"{c} = excluded.{c}" for c in cols if c != "ticker")
     sql = (
         f"INSERT INTO screener_imports ({cols_str}) VALUES ({placeholders}) "
         f"ON CONFLICT(ticker) DO UPDATE SET {update_str}, imported_at = datetime('now')"
     )
 
+    conn = get_connection()
     rows_written = 0
     with conn:
         for _, row in df.iterrows():
-            values = [_clean(row.get(c)) for c in _SCREENER_COLS]
+            values = [_clean(row[c]) for c in cols]
             conn.execute(sql, values)
             rows_written += 1
     conn.close()
@@ -74,15 +77,9 @@ def render() -> None:
             try:
                 df = parse_borsdata_screener_csv(uploaded_file.read())
                 rows_written = _upsert_screener_imports(df)
-                st.success(f"Imported **{rows_written}** stocks.")
-                preview_cols = [c for c in
-                                ["borsdata_id", "ticker", "company", "instrument",
-                                 "country", "market", "sector", "industry",
-                                 "pe_current", "perf_3m", "perf_6m", "roe_avg_3y",
-                                 "profit_margin", "market_cap_sek"]
-                                if c in df.columns]
+                st.success(f"Imported **{rows_written}** stocks across **{len(df.columns)}** columns.")
                 st.subheader("Preview")
-                st.dataframe(df[preview_cols].head(20), use_container_width=True, hide_index=True)
+                st.dataframe(df.head(20), use_container_width=True, hide_index=True)
             except ValueError as e:
                 st.error(f"Parse error: {e}")
             except Exception as e:
@@ -93,21 +90,10 @@ def render() -> None:
     st.subheader("Data currently in database")
     try:
         conn = get_connection()
-        rows = conn.execute(
-            "SELECT borsdata_id, ticker, company, instrument, country, market, "
-            "sector, industry, imported_at "
-            "FROM screener_imports ORDER BY ticker"
-        ).fetchall()
+        df_db = pd.read_sql_query("SELECT * FROM screener_imports ORDER BY ticker", conn)
         conn.close()
-        if rows:
-            st.dataframe(
-                pd.DataFrame(rows, columns=[
-                    "Börsdata ID", "Ticker", "Company", "Instrument",
-                    "Country", "Market", "Sector", "Industry", "Imported at",
-                ]),
-                use_container_width=True,
-                hide_index=True,
-            )
+        if not df_db.empty:
+            st.dataframe(df_db, use_container_width=True, hide_index=True)
         else:
             st.info("No data imported yet.")
     except Exception as e:
