@@ -1,0 +1,5 @@
+data/portfolio.db
+__pycache__/
+*.pyc
+.env
+.streamlit/secrets.toml
