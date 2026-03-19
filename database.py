@@ -66,6 +66,39 @@ def init_db() -> None:
                 FOREIGN KEY (ticker) REFERENCES stocks(ticker)
             );
 
+            -- Pre-computed screener data imported directly from Börsdata screener exports
+            CREATE TABLE IF NOT EXISTS screener_imports (
+                ticker              TEXT PRIMARY KEY,
+                company             TEXT,
+                sector              TEXT,
+                country             TEXT,
+                market              TEXT,           -- exchange / list (e.g. "Nasdaq")
+                industry            TEXT,
+                pe_current          REAL,
+                peg_current         REAL,
+                price_ma200_pct     REAL,           -- Price / MA200 deviation %
+                ma200_trend_1m      REAL,           -- 1-month trend vs MA200 %
+                perf_3m             REAL,           -- 3-month performance %
+                perf_6m             REAL,           -- 6-month performance %
+                perf_3y             REAL,           -- 3-year performance %
+                roe_avg_3y          REAL,
+                roe_current         REAL,
+                net_debt_ebitda     REAL,
+                profit_margin       REAL,
+                profit_margin_avg   REAL,
+                gross_margin        REAL,
+                gross_margin_avg    REAL,
+                earnings_growth_5y  REAL,
+                revenue_growth_5y   REAL,
+                revenue_growth_yy   REAL,
+                revenue_growth_1y   REAL,
+                dividend_growth_5y  REAL,
+                market_cap_sek      REAL,
+                opcashflow_stable   INTEGER,
+                earnings_stable     INTEGER,
+                imported_at         TEXT DEFAULT (datetime('now'))
+            );
+
             -- User's portfolio positions
             CREATE TABLE IF NOT EXISTS portfolio (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
