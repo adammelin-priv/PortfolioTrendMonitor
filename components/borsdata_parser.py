@@ -51,11 +51,16 @@ COLUMN_ALIASES = {
 # Maps normalised column name → internal field name for the screener_imports table.
 SCREENER_COLUMN_ALIASES = {
     "info - ticker":            "ticker",
+    "börsdata id":              "borsdata_id",
+    "borsdata id":              "borsdata_id",
     "company":                  "company",
+    "info - instrument":        "instrument",
     "info - sector":            "sector",
     "info - country":           "country",
     "info - list":              "market",
     "info - industry":          "industry",
+    "banks - credit losses":    "banks_credit_losses",
+    "banks - c/i-ratio":        "banks_ci_ratio",
     "p/e - current":            "pe_current",
     "peg - current":            "peg_current",
     "price / ma - ma 200d":     "price_ma200_pct",
@@ -253,8 +258,9 @@ def parse_borsdata_screener_csv(file_content: bytes | str) -> pd.DataFrame:
             )
 
     # Convert remaining numeric columns (skip those already handled as percentages)
-    _extra_numeric = {"pe_current", "peg_current", "net_debt_ebitda",
-                      "market_cap_sek", "opcashflow_stable", "earnings_stable"}
+    _extra_numeric = {"borsdata_id", "pe_current", "peg_current", "net_debt_ebitda",
+                      "market_cap_sek", "opcashflow_stable", "earnings_stable",
+                      "banks_credit_losses", "banks_ci_ratio"}
     for col in _extra_numeric - _SCREENER_PCT_COLS:
         if col in df.columns:
             df[col] = pd.to_numeric(

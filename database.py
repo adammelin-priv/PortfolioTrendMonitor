@@ -69,7 +69,9 @@ def init_db() -> None:
             -- Pre-computed screener data imported directly from Börsdata screener exports
             CREATE TABLE IF NOT EXISTS screener_imports (
                 ticker              TEXT PRIMARY KEY,
+                borsdata_id         INTEGER,
                 company             TEXT,
+                instrument          TEXT,           -- e.g. "Stocks"
                 sector              TEXT,
                 country             TEXT,
                 market              TEXT,           -- exchange / list (e.g. "Nasdaq")
@@ -96,6 +98,8 @@ def init_db() -> None:
                 market_cap_sek      REAL,
                 opcashflow_stable   INTEGER,
                 earnings_stable     INTEGER,
+                banks_credit_losses REAL,
+                banks_ci_ratio      REAL,
                 imported_at         TEXT DEFAULT (datetime('now'))
             );
 
@@ -110,4 +114,17 @@ def init_db() -> None:
                 FOREIGN KEY (ticker) REFERENCES stocks(ticker)
             );
         """)
+    # Migrate existing databases: add new columns if they don't exist yet
+    _add_column_if_missing(conn, "screener_imports", "borsdata_id", "INTEGER")
+    _add_column_if_missing(conn, "screener_imports", "instrument", "TEXT")
+    _add_column_if_missing(conn, "screener_imports", "banks_credit_losses", "REAL")
+    _add_column_if_missing(conn, "screener_imports", "banks_ci_ratio", "REAL")
+
     conn.close()
+
+
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column: str, col_type: str) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+        conn.commit()
