@@ -474,12 +474,18 @@ def _render_stock_screener(df: pd.DataFrame, configs: list[dict]) -> None:
 
     display = filtered[display_cols].rename(columns=col_labels)
 
-    def _colour_trend(val):
-        colours = {"up": "color: #27ae60", "down": "color: #e74c3c", "sideways": "color: #e67e22"}
-        return colours.get(str(val).lower(), "")
-
-    styled = display.style.applymap(_colour_trend, subset=["Trend"])
-    st.dataframe(styled, use_container_width=True, hide_index=True)
+    st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Trend": st.column_config.TextColumn("Trend"),
+            "Momentum": st.column_config.NumberColumn("Momentum", format="%.1f"),
+            "RSI 14": st.column_config.NumberColumn("RSI 14", format="%.1f"),
+            "3m%": st.column_config.NumberColumn("3m%", format="%.1f"),
+            "6m%": st.column_config.NumberColumn("6m%", format="%.1f"),
+        },
+    )
 
 
 # ── Tab 2: Screening Setup ────────────────────────────────────────────────────
